@@ -25,6 +25,10 @@ jobs:
     - uses: actions/checkout@v2
       with:
           fetch-depth: 1
+    
+    # Create .env.ci to run test
+    - name: Prepare The Environment
+      run: cp .env.ci .env
           
     - name: Cache vendor
       id: cache
@@ -44,14 +48,13 @@ jobs:
       run: |
         docker-compose run php composer install -n --prefer-dist
         
-    - name: run dusk & exit
+    - name: run dusk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        DB_CONNECTION: mysql
+        DB_DATABASE: dusk
+        DB_PORT: ${{ job.services.mysql.ports[3306] }}
+        DB_USER: root
       run: |
-        chmod -R 0755 vendor/laravel/dusk/bin/
+          chmod -R 0755 vendor/laravel/dusk/bin/
           php artisan dusk
-        env:
-          DB_CONNECTION: mysql
-          DB_DATABASE: dusk
-          DB_PORT: ${{ job.services.mysql.ports[3306] }}
-          DB_USER: root
