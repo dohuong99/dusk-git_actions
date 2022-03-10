@@ -26,6 +26,12 @@ jobs:
       with:
           fetch-depth: 1
           
+    - name: Prepare the enviroment
+      run: 
+        if [ ! -e .env.ci ]; then 
+          cp .env .env.ci
+          docker-compose run php php artisan key:generate ; 
+        fi
     - name: Cache vendor
       id: cache
       uses: actions/cache@v2
