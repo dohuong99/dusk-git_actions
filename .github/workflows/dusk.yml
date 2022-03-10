@@ -1,0 +1,57 @@
+name: Continuos Integration for Laravel Dusk
+
+on: 
+  pull_request
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  dusk-php:
+    runs-on: ubuntu-latest
+    
+    services:
+      mysql:
+        image: mysql/mysql-server:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: laravel
+        ports:
+          - 13325:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    timeout-minutes: 30
+    
+    steps:
+    - uses: actions/checkout@v2
+      with:
+          fetch-depth: 1
+          
+    - name: Cache vendor
+      id: cache
+      uses: actions/cache@v2
+      with:
+        path: ./vendor
+        key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-composer-
+          
+    - name: Build the Docker image
+      run: |
+        docker-compose build
+        
+    - name: Composer install
+      if: steps.cache.outputs.cache-hit != 'true'
+      run: |
+        docker-compose run php composer install -n --prefer-dist
+        
+    - name: run dusk & exit
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        chmod -R 0755 vendor/laravel/dusk/bin/
+          php artisan dusk
+        env:
+          DB_CONNECTION: mysql
+          DB_DATABASE: dusk
+          DB_PORT: ${{ job.services.mysql.ports[3306] }}
+          DB_USER: root
